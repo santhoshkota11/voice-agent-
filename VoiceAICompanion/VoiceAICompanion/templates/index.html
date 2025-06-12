@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice AI Agent - Control Panel</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>
+                Voice AI Agent
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-tachometer-alt me-1"></i>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Header -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-body text-center">
+                        <h1 class="card-title">
+                            <i class="fas fa-phone-alt text-primary me-3"></i>
+                            Voice AI Agent Control Panel
+                        </h1>
+                        <p class="card-text text-muted">
+                            Integrated Voice AI Agent with Twilio, OpenRouter LLM, and Sarvam AI TTS
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-heartbeat me-2"></i>
+                            System Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="statusIndicators">
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-phone text-info me-2"></i>
+                                    <span>Twilio: </span>
+                                    <span class="badge bg-secondary ms-1" id="twilioStatus">Checking...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-brain text-info me-2"></i>
+                                    <span>OpenRouter: </span>
+                                    <span class="badge bg-secondary ms-1" id="openrouterStatus">Checking...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-volume-up text-info me-2"></i>
+                                    <span>Sarvam AI: </span>
+                                    <span class="badge bg-secondary ms-1" id="sarvamStatus">Checking...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-globe text-info me-2"></i>
+                                    <span>Webhooks: </span>
+                                    <span class="badge bg-secondary ms-1" id="webhookStatus">Checking...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Make Outbound Call -->
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-phone-square-alt me-2"></i>
+                            Initiate Outbound Call
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('handle_make_call') }}">
+                            <div class="mb-3">
+                                <label for="phone_number" class="form-label">
+                                    <i class="fas fa-phone me-1"></i>
+                                    Phone Number
+                                </label>
+                                <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                                       placeholder="+1234567890" required>
+                                <div class="form-text">Include country code (e.g., +91 for India, +1 for US)</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="greeting" class="form-label">
+                                    <i class="fas fa-comment-dots me-1"></i>
+                                    Greeting Message
+                                </label>
+                                <textarea class="form-control" id="greeting" name="greeting" rows="2" 
+                                          placeholder="नमस्ते! मैं आपका AI असिस्टेंट हूँ। मैं आपकी कैसे सहायता कर सकता हूँ?">नमस्ते! मैं आपका AI असिस्टेंट हूँ। मैं आपकी कैसे सहायता कर सकता हूँ?</textarea>
+                                <div class="form-text">The initial message that will be spoken when the call connects</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="system_message" class="form-label">
+                                    <i class="fas fa-cog me-1"></i>
+                                    System Instructions
+                                </label>
+                                <textarea class="form-control" id="system_message" name="system_message" rows="3" 
+                                          placeholder="You are a helpful AI assistant...">You are a helpful AI assistant. Respond in the language the user speaks (Hindi or English). Keep responses concise and friendly.</textarea>
+                                <div class="form-text">Instructions that guide the AI's behavior during the conversation</div>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-phone me-2"></i>
+                                    Initiate Call
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Help -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Setup Instructions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-key me-2"></i>Required Environment Variables:</h6>
+                                <ul class="list-unstyled">
+                                    <li><code>TWILIO_ACCOUNT_SID</code></li>
+                                    <li><code>TWILIO_AUTH_TOKEN</code></li>
+                                    <li><code>TWILIO_PHONE_NUMBER</code></li>
+                                    <li><code>OPENROUTER_API_KEY</code></li>
+                                    <li><code>SARVAM_API_KEY</code></li>
+                                    <li><code>SERVER_URL</code> (your ngrok URL)</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-globe me-2"></i>Webhook Configuration:</h6>
+                                <p class="small">
+                                    Configure your Twilio phone number webhook URL to:<br>
+                                    <code id="webhookUrl">[SERVER_URL]/voice_webhook</code>
+                                </p>
+                                
+                                <h6><i class="fas fa-language me-2"></i>Supported Languages:</h6>
+                                <ul class="list-unstyled small">
+                                    <li>• Hindi (Devanagari script detection)</li>
+                                    <li>• English (default fallback)</li>
+                                    <li>• Extensible for other Indian languages</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Check system status on page load
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                // Update status indicators
+                updateStatusBadge('twilioStatus', status.twilio_configured);
+                updateStatusBadge('openrouterStatus', status.openrouter_configured);
+                updateStatusBadge('sarvamStatus', status.sarvam_configured);
+                updateStatusBadge('webhookStatus', status.server_url_configured);
+                
+                // Update webhook URL display
+                if (status.server_url_configured) {
+                    document.getElementById('webhookUrl').textContent = '[SERVER_URL]/voice_webhook';
+                }
+            } catch (error) {
+                console.error('Failed to check system status:', error);
+            }
+        }
+        
+        function updateStatusBadge(elementId, isConfigured) {
+            const element = document.getElementById(elementId);
+            if (isConfigured) {
+                element.textContent = 'Ready';
+                element.className = 'badge bg-success ms-1';
+            } else {
+                element.textContent = 'Not Configured';
+                element.className = 'badge bg-danger ms-1';
+            }
+        }
+        
+        // Check status on page load
+        document.addEventListener('DOMContentLoaded', checkSystemStatus);
+    </script>
+</body>
+</html>

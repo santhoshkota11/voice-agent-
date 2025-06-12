@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Voice AI Agent</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot me-2"></i>
+                Voice AI Agent
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('index') }}">
+                    <i class="fas fa-home me-1"></i>
+                    Home
+                </a>
+                <a class="nav-link active" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-tachometer-alt me-1"></i>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Dashboard Header -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h1 class="card-title">
+                            <i class="fas fa-tachometer-alt text-primary me-3"></i>
+                            Dashboard
+                        </h1>
+                        <p class="card-text text-muted">
+                            Monitor active conversations and system performance
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-phone-alt fa-2x text-primary mb-2"></i>
+                        <h5 class="card-title">{{ conversations|length }}</h5>
+                        <p class="card-text text-muted">Active Conversations</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-comments fa-2x text-success mb-2"></i>
+                        <h5 class="card-title" id="totalMessages">
+                            {% set total_messages = namespace(count=0) %}
+                            {% for call_sid, call_data in conversations.items() %}
+                                {% set total_messages.count = total_messages.count + call_data.history|length %}
+                            {% endfor %}
+                            {{ total_messages.count }}
+                        </h5>
+                        <p class="card-text text-muted">Total Messages</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-brain fa-2x text-info mb-2"></i>
+                        <h5 class="card-title">OpenRouter</h5>
+                        <p class="card-text text-muted">LLM Provider</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-volume-up fa-2x text-warning mb-2"></i>
+                        <h5 class="card-title">Sarvam AI</h5>
+                        <p class="card-text text-muted">TTS Provider</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Conversations -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Active Conversations
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if conversations %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th><i class="fas fa-id-card me-1"></i>Call SID</th>
+                                            <th><i class="fas fa-comments me-1"></i>Messages</th>
+                                            <th><i class="fas fa-language me-1"></i>Last Message</th>
+                                            <th><i class="fas fa-cog me-1"></i>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for call_sid, call_data in conversations.items() %}
+                                        <tr>
+                                            <td>
+                                                <code class="small">{{ call_sid[:20] }}...</code>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ call_data.history|length }}</span>
+                                            </td>
+                                            <td>
+                                                {% if call_data.history %}
+                                                    {% set last_message = call_data.history[-1] %}
+                                                    <small class="text-muted">
+                                                        <strong>{{ last_message.role.title() }}:</strong>
+                                                        {{ last_message.content[:50] }}
+                                                        {% if last_message.content|length > 50 %}...{% endif %}
+                                                    </small>
+                                                {% else %}
+                                                    <small class="text-muted">No messages yet</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-info" 
+                                                        onclick="viewConversation('{{ call_sid }}')"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#conversationModal">
+                                                    <i class="fas fa-eye me-1"></i>View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-phone-slash fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No Active Conversations</h5>
+                                <p class="text-muted">Conversations will appear here when calls are active</p>
+                                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>
+                                    Make a Call
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt me-2"></i>
+                            Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-phone me-2"></i>
+                                    Make New Call
+                                </a>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <button class="btn btn-secondary btn-lg w-100" onclick="refreshDashboard()">
+                                    <i class="fas fa-sync-alt me-2"></i>
+                                    Refresh Dashboard
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversation Modal -->
+    <div class="modal fade" id="conversationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-comments me-2"></i>
+                        Conversation Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="conversationContent">
+                        <!-- Content will be populated by JavaScript -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Store conversation data for modal
+        const conversationData = {{ conversations | tojson | safe }};
+        
+        function viewConversation(callSid) {
+            const conversation = conversationData[callSid];
+            if (!conversation) return;
+            
+            const content = document.getElementById('conversationContent');
+            
+            let html = `
+                <div class="mb-3">
+                    <strong>Call SID:</strong> <code>${callSid}</code>
+                </div>
+                <div class="mb-3">
+                    <strong>System Message:</strong>
+                    <div class="bg-secondary p-2 rounded small">${conversation.system_message}</div>
+                </div>
+                <div class="mb-3">
+                    <strong>Greeting:</strong>
+                    <div class="bg-secondary p-2 rounded small">${conversation.greeting}</div>
+                </div>
+            `;
+            
+            if (conversation.history && conversation.history.length > 0) {
+                html += `
+                    <div class="mb-3">
+                        <strong>Conversation History:</strong>
+                        <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                `;
+                
+                conversation.history.forEach((message, index) => {
+                    const isUser = message.role === 'user';
+                    const badgeClass = isUser ? 'bg-primary' : 'bg-success';
+                    const icon = isUser ? 'fas fa-user' : 'fas fa-robot';
+                    
+                    html += `
+                        <div class="mb-2">
+                            <span class="badge ${badgeClass}">
+                                <i class="${icon} me-1"></i>
+                                ${message.role.charAt(0).toUpperCase() + message.role.slice(1)}
+                            </span>
+                            <div class="mt-1 small">${message.content}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="text-muted text-center py-3">
+                        <i class="fas fa-comment-slash fa-2x mb-2"></i>
+                        <p>No conversation history yet</p>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = html;
+        }
+        
+        function refreshDashboard() {
+            window.location.reload();
+        }
+        
+        // Auto-refresh dashboard every 30 seconds
+        setInterval(refreshDashboard, 30000);
+    </script>
+</body>
+</html>
